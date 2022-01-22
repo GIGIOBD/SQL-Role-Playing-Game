@@ -1,0 +1,58 @@
+create procedure dbo.split_ataque
+(
+	@ataque varchar(50), 
+	@orderby bit = null,
+	@vl_ataque int = null output
+)
+as
+begin
+
+declare @p varchar(500)
+set @p = @ataque  
+
+set @p = 
+'<pessoas> 
+	<pessoa>
+		<ataque>' + replace(@p, 'd', '</ataque>
+		<ataque>')
+set @p = replace(@p, 'd', '</ataque>
+	</pessoa>
+	<pessoa>
+	') + '</ataque>
+	</pessoa>
+</pessoas>'
+
+	declare @pessoas xml = @p
+
+	if object_id('tempdb..#temp_ataque','u') is not null
+	begin
+		drop table #temp_ataque 
+	end
+	create table #temp_ataque (ataque int)
+
+	insert into #temp_ataque (ataque)
+	select
+	    p.pessoa.value('ataque[1]','int') as ataque
+	from @pessoas.nodes('pessoas/pessoa') p(pessoa)
+	union all
+	select
+	    p.pessoa.value('ataque[2]','int') as ataque
+	from @pessoas.nodes('pessoas/pessoa') p(pessoa)
+
+ 
+	if isnull(@orderby,0) = 0 
+	begin
+		select top 1
+			@vl_ataque = ataque
+		from #temp_ataque
+		order by ataque asc
+	end
+	else
+	begin
+		select top 1
+			@vl_ataque = ataque
+		from #temp_ataque
+		order by ataque desc
+	end
+	
+end
